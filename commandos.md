@@ -1,4 +1,4 @@
-
+az aks get-credentials --resource-group scm-rg --name scm-aks
 
 kubectl create secret generic django-secret \                                                       
   -n scm-app \

@@ -1,0 +1,22 @@
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: albinbinu.dev
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: django-service
+            port:
+              number: 8000
+  - http:                        # 👈 no host: matches requests by IP
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: django-service
+            port:
+              number: 8000

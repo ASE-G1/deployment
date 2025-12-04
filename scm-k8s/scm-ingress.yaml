@@ -3,8 +3,15 @@ kind: Ingress
 metadata:
   name: scm-ingress
   namespace: scm-app
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
 spec:
   ingressClassName: nginx
+  tls:
+    - hosts:
+        - albinbinu.dev
+      secretName: albinbinu-tls   # cert-manager will fill this with the cert
   rules:
   - host: albinbinu.dev
     http:
