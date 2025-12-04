@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-worker
+  namespace: scm-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: celery-worker
+  template:
+    metadata:
+      labels:
+        app: celery-worker
+    spec:
+      containers:
+        - name: celery-worker
+          image: asescmacr.azurecr.io/scm-backend:v13
+          command: ["celery"]
+          args: ["-A", "SustainableCityManagement", "worker", "--loglevel=INFO"]
+          env:
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: scm-db-secret
+                  key: DB_HOST
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: scm-db-secret
+                  key: DB_NAME
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: scm-db-secret
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: scm-db-secret
+                  key: DB_PASSWORD
+            - name: DB_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: scm-db-secret
+                  key: DB_PORT
+            - name: DB_SSLMODE
+              valueFrom:
+                secretKeyRef:
+                  name: scm-db-secret
+                  key: DB_SSLMODE
+            - name: DJANGO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: django-secret
+                  key: DJANGO_SECRET_KEY
+            - name: DEBUG
+              value: "False"
+            - name: ALLOWED_HOSTS
+              value: "*"
+            - name: REDIS_URL
+              value: "rediss://:ntjC4w4dd8EoYROnkuveu25tqc73bl4TNAzCaGjnanw=@ase-redis2.redis.cache.windows.net:6380/0"
