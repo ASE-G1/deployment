@@ -52,6 +52,8 @@ kubectl get ingress -n scm-app
 
 kubectl delete ingress scm-ingress -n scm-app 
 
+kubectl apply -f scm-ingress.yaml 
+
 kubectl apply -f django-api.yaml 
 
 
@@ -93,3 +95,15 @@ print(connection.settings_dict)
 with connection.cursor() as cursor:
     cursor.execute("SELECT 1;")
     print(cursor.fetchone())
+
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml
+
+
+
+kubectl get pods -n cert-manager
+
+
+kubectl apply -f letsencrypt-prod.yaml
+
+kubectl logs deploy/ingress-ingress-nginx-controller -n ingress-nginx   
+

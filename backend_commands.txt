@@ -1,0 +1,10 @@
+kubectl apply -f django-api.yaml 
+
+kubectl rollout restart deploy/django-api -n scm-app
+
+kubectl get secrets -n scm-app           
+
+kubectl describe secret django-secret -n scm-app
+
+kubectl get pods -n scm-app
+
