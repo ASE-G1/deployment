@@ -15,7 +15,8 @@ spec:
     spec:
       containers:
         - name: celery-beat
-          image: asescmacr.azurecr.io/scm-backend:v13
+          image: asescmacr.azurecr.io/scm-backend:latest
+          imagePullPolicy: Always
           command: ["celery"]
           args:
             - "-A"

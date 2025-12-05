@@ -15,7 +15,8 @@ spec:
     spec:
       containers:
       - name: django
-        image: asescmacr.azurecr.io/scm-backend:v13
+        image: asescmacr.azurecr.io/scm-backend:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 8000
         env:
