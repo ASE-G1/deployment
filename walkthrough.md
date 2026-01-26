@@ -104,15 +104,31 @@ az network nsg rule create \
   --access Allow --protocol Tcp
 ```
 
-### 🗄️ 2. Database Migration Fixes
-If you see "Table does not exist" but migrations show as applied, run this sequence:
+### 🗄️ 2. Database & Redis Fixes
+**Database Migration Errors:**
+If you see "Table does not exist" but migrations show as applied, run:
 ```bash
-# 1. Reset migration history for core apps
+# Reset history for core apps
 kubectl exec -n scm-app deploy/django-api -- sh -c "python manage.py migrate --fake sessions zero && python manage.py migrate --fake auth zero && python manage.py migrate --fake admin zero && python manage.py migrate --fake contenttypes zero"
 
-# 2. Re-apply migrations properly
+# Re-apply initial migrations
 kubectl exec -n scm-app deploy/django-api -- python manage.py migrate --fake-initial
 ```
+
+**Redis Connection Issues ("Redis is cooked"):**
+If Redis isn't working, verify the `REDIS_URL` in the Kubernetes manifests. We found the URL was hardcoded to an old instance.
+1. Get the new Redis access key:
+   ```bash
+   az redis list-keys --name scm-redis-cache-jayanandenm --resource-group scm-rg --query primaryKey -o tsv
+   ```
+2. Update `REDIS_URL` in `django-api.yaml`, `celery-worker.yaml`, and `celery-beat.yaml`:
+   `rediss://:<primaryKey>@scm-redis-cache-jayanandenm.redis.cache.windows.net:6380/0`
+3. Re-apply manifests:
+   ```bash
+   kubectl apply -f deployment/scm-k8s/django-api.yaml
+   kubectl apply -f deployment/scm-k8s/celery-worker.yaml
+   kubectl apply -f deployment/scm-k8s/celery-beat.yaml
+   ```
 
 ### 👤 3. Admin & User Management
 **Reset Admin Password:**
