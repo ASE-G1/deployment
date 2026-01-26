@@ -1,0 +1,6 @@
+resource_group_name    = "scm-rg"
+location               = "uksouth"
+acr_name               = "asescmacr" # Must be globally unique
+aks_cluster_name       = "scm-aks"
+postgres_server_name   = "scm-postgres-server" # Must be globally unique
+postgres_admin_password = "ChangeMe!123" # Use a strong password
