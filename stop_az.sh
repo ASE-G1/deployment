@@ -3,8 +3,8 @@ set -e
 
 RG="scm-rg"
 AKS_NAME="scm-aks"
-WEBAPP_NAME="ase-scm"
-PG_NAME="scm-postgres"      # flexible-server name
+WEBAPP_NAME="scm-frontend-webapp"
+PG_NAME="scm-postgres-server"      # flexible-server name
 
 echo "Stopping App Service: $WEBAPP_NAME"
 az webapp stop --name "$WEBAPP_NAME" --resource-group "$RG" || echo "Webapp stop failed/ not found"

@@ -3,8 +3,8 @@ set -e
 
 RG="scm-rg"
 AKS_NAME="scm-aks"
-WEBAPP_NAME="ase-scm"
-PG_NAME="scm-postgres"      # flexible-server name
+WEBAPP_NAME="scm-frontend-webapp"
+PG_NAME="scm-postgres-server"      # flexible-server name
 
 echo "Starting Postgres flexible server: $PG_NAME"
 az postgres flexible-server start --name "$PG_NAME" --resource-group "$RG" || echo "Postgres start failed / maybe not flexible-server?"
