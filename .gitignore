@@ -1,3 +1,18 @@
+# Terraform
+terraform/.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+terraform.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Build artifacts
+react-build.zip
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

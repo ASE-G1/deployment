@@ -25,3 +25,5 @@ redis-cli -h ase-redis2.redis.cache.windows.net -p 6380 --tls -a ntjC4w4dd8EoYRO
 kubectl exec -it deploy/django-api -n scm-app -- python manage.py shell
 kubectl logs -l app=celery-worker -n scm-app
 
+
+kubectl logs deploy/ingress-ingress-nginx-controller -n ingress-nginx

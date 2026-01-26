@@ -14,6 +14,8 @@ kubectl describe secret django-secret -n scm-app
 
 kubectl get secret <secret-name> -n scm-app -o jsonpath="{.data}" | jq -r 'to_entries[] | "\(.key)=\(.value|@base64d)"'
 
+kubectl get secret scm-db-secret -n scm-app -o jsonpath="{.data}" | jq -r 'to_entries[] | "\(.key)=\(.value|@base64d)"'
+
 
 kubectl rollout restart deployment django-api -n scm-app   
 
@@ -107,3 +109,31 @@ kubectl apply -f letsencrypt-prod.yaml
 
 kubectl logs deploy/ingress-ingress-nginx-controller -n ingress-nginx   
 
+# Docker Repository and Images in ACR
+ az acr repository list --name asescmacr -o table 
+
+az acr repository show-tags \                                                   
+  --name asescmacr \
+  --repository scm-backend \
+  -o table                     
+
+
+Delete all tags except latest
+for TAG in $(az acr repository show-tags \
+  --name asescmacr \
+  --repository scm-backend \
+  --output tsv | grep -v latest); do
+
+  echo "Deleting scm-backend:$TAG ..."
+  az acr repository delete \
+    --name asescmacr \
+    --image scm-backend:$TAG \
+    --yes
+
+done
+
+
+<!-- kubectl exec -n scm-app deploy/django-api -- sh -c "echo \"from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.create_superuser('admin', 'admin@example.com', 'Password@123') if not User.objects.filter(username='admin').exists() else print('User exists')\" | python manage.py shell" -->
+
+
+kubectl exec -n scm-app deploy/django-api -- sh -c "echo \"from django.contrib.auth import get_user_model; User = get_user_model(); u = User.objects.get(username='admin'); u.set_password('Password@123'); u.save(); print('Password updated')\" | python manage.py shell"
