@@ -1,0 +1,10 @@
+resource_group_name    = "scm-rg"
+location               = "uksouth"
+acr_name               = "asescmacr"
+aks_cluster_name       = "scm-aks"
+postgres_server_name   = "scm-postgres-server"
+postgres_admin_password = "Password@123"
+
+redis_name             = "scm-redis-cache-jayanandenm"
+app_service_plan_name  = "scm-asp"
+webapp_name            = "scm-frontend-webapp"
