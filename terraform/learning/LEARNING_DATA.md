@@ -24,4 +24,4 @@ Look at [redis.tf](file:///Users/jayanandenm/Desktop/ASE/codebase/deployment/ter
 - This means your app MUST connect using an encrypted connection (SSL/TLS). This is a security best practice that you've already implemented!
 
 ---
-**Next Module**: [Module 5: Automation & Maintenance](file:///Users/jayanandenm/Desktop/ASE/codebase/deployment/terraform/LEARNING_AUTOMATION.md)
+**Next Module**: [Module 5: Automation & Maintenance](file:///Users/jayanandenm/Desktop/ASE/codebase/deployment/terraform/learning/LEARNING_AUTOMATION.md)

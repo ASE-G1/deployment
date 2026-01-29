@@ -85,8 +85,8 @@ Run the script to bring everything back online:
 ## 🎓 Technology Mastery Learning Path
 To become an expert in this deployment stack, follow these guided modules:
 
-1. [**Module 1: Terraform**](file:///Users/jayanandenm/Desktop/ASE/codebase/deployment/terraform/LEARNING_TERRAFORM.md) - Learn how your infrastructure is defined as code.
-2. [**Module 2: Containers & ACR**](file:///Users/jayanandenm/Desktop/ASE/codebase/deployment/terraform/LEARNING_CONTAINERS.md) - Master Docker and image management.
-3. [**Module 3: Kubernetes & AKS**](file:///Users/jayanandenm/Desktop/ASE/codebase/deployment/terraform/LEARNING_K8S.md) - Understand how your apps are orchestrated.
-4. [**Module 4: Managed Data Services**](file:///Users/jayanandenm/Desktop/ASE/codebase/deployment/terraform/LEARNING_DATA.md) - Deep dive into Postgres and Redis.
-5. [**Module 5: Automation**](file:///Users/jayanandenm/Desktop/ASE/codebase/deployment/terraform/LEARNING_AUTOMATION.md) - Professional maintenance and CLI mastery.
+1. [**Module 1: Terraform**](file:///Users/jayanandenm/Desktop/ASE/codebase/deployment/terraform/learning/LEARNING_TERRAFORM.md) - Learn how your infrastructure is defined as code.
+2. [**Module 2: Containers & ACR**](file:///Users/jayanandenm/Desktop/ASE/codebase/deployment/terraform/learning/LEARNING_CONTAINERS.md) - Master Docker and image management.
+3. [**Module 3: Kubernetes & AKS**](file:///Users/jayanandenm/Desktop/ASE/codebase/deployment/terraform/learning/LEARNING_K8S.md) - Understand how your apps are orchestrated.
+4. [**Module 4: Managed Data Services**](file:///Users/jayanandenm/Desktop/ASE/codebase/deployment/terraform/learning/LEARNING_DATA.md) - Deep dive into Postgres and Redis.
+5. [**Module 5: Automation**](file:///Users/jayanandenm/Desktop/ASE/codebase/deployment/terraform/learning/LEARNING_AUTOMATION.md) - Professional maintenance and CLI mastery.

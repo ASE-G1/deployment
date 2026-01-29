@@ -57,4 +57,4 @@ terraform plan
 Read the output carefully. Does it say "No changes are needed" or does it want to create something? Understanding the `plan` output is the difference between a beginner and an expert.
 
 ---
-**Next Module**: [Module 2: Containerization & ACR](file:///Users/jayanandenm/Desktop/ASE/codebase/deployment/terraform/LEARNING_CONTAINERS.md)
+**Next Module**: [Module 2: Containerization & ACR](file:///Users/jayanandenm/Desktop/ASE/codebase/deployment/terraform/learning/LEARNING_CONTAINERS.md)

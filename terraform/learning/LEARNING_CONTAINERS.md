@@ -35,4 +35,4 @@ Open [deploy_backend_manual.sh](file:///Users/jayanandenm/Desktop/ASE/codebase/d
 - **Why it's there**: Most Azure servers run on AMD64 chips. If you build on a MacBook (M1/M2/M3 chips), you MUST use this flag, or the server won't be able to "read" your container.
 
 ---
-**Next Module**: [Module 3: Orchestration (AKS & Kubernetes)](file:///Users/jayanandenm/Desktop/ASE/codebase/deployment/terraform/LEARNING_K8S.md)
+**Next Module**: [Module 3: Orchestration (AKS & Kubernetes)](file:///Users/jayanandenm/Desktop/ASE/codebase/deployment/terraform/learning/LEARNING_K8S.md)

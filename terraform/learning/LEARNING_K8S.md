@@ -36,4 +36,4 @@ kubectl rollout restart deployment/django-api -n scm-app
 **Why do we do this?** If you push a new image with the same tag (like `latest`), Kubernetes won't notice a change. This command forces it to replace the old containers with the new ones immediately.
 
 ---
-**Next Module**: [Module 4: Managed Data Services](file:///Users/jayanandenm/Desktop/ASE/codebase/deployment/terraform/LEARNING_DATA.md)
+**Next Module**: [Module 4: Managed Data Services](file:///Users/jayanandenm/Desktop/ASE/codebase/deployment/terraform/learning/LEARNING_DATA.md)
