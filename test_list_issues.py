@@ -53,7 +53,7 @@ def format_issue(issue):
         try:
             dt = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
             created_str = dt.strftime('%Y-%m-%d %H:%M')
-        except:
+        except (ValueError, AttributeError):
             created_str = created_at
     else:
         created_str = 'unknown'
