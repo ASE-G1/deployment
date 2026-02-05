@@ -5,6 +5,7 @@ RESOURCE_GROUP="scm-rg"
 AKS_CLUSTER="scm-aks"
 POSTGRES_SERVER="scm-postgres-server"
 WEBAPP_NAME="scm-frontend-webapp"
+WEBAPP_NAME="scm-frontend-webapp"
 
 echo "Starting Azure Resources in $RESOURCE_GROUP..."
 

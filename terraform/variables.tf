@@ -45,6 +45,8 @@ variable "redis_name" {
   default     = "scm-redis-cache"
 }
 
+
+
 variable "app_service_plan_name" {
   description = "Name of the App Service Plan"
   type        = string

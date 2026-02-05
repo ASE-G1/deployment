@@ -5,6 +5,7 @@ RESOURCE_GROUP="scm-rg"
 AKS_CLUSTER="scm-aks"
 POSTGRES_SERVER="scm-postgres-server"
 WEBAPP_NAME="scm-frontend-webapp"
+WEBAPP_NAME="scm-frontend-webapp"
 # Redis name for reference, but it cannot be paused.
 # REDIS_NAME="scm-redis-cache"
 
@@ -19,8 +20,8 @@ echo "Stopping PostgreSQL Flexible Server: $POSTGRES_SERVER..."
 az postgres flexible-server stop --name $POSTGRES_SERVER --resource-group $RESOURCE_GROUP
 
 # 3. Stop Web App
-# Note: This stops the app from running, but the App Service Plan (B1) may still incur hourly costs 
-# because resources are reserved.
+# Note: This stops the app from running, but the App Service Plan (B1/F1) may still exist.
+# For F1, there is no hourly cost, but for B1 there is.
 echo "Stopping Web App: $WEBAPP_NAME..."
 az webapp stop --name $WEBAPP_NAME --resource-group $RESOURCE_GROUP
 

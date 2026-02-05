@@ -3,7 +3,7 @@ resource "azurerm_service_plan" "asp" {
   resource_group_name = azurerm_resource_group.scm.name
   location            = azurerm_resource_group.scm.location
   os_type             = "Linux"
-  sku_name            = "B1" # B1 is lowest paid, F1 is free but has limitations. B1 is safer for Node.
+  sku_name            = "F1" # Free Tier
 }
 
 resource "azurerm_linux_web_app" "frontend" {
@@ -16,9 +16,10 @@ resource "azurerm_linux_web_app" "frontend" {
     application_stack {
       node_version = "20-lts"
     }
+    always_on = false # F1 tier does not support Always On
   }
 
   app_settings = {
-    "WEBSITES_PORT" = "3000" # If serving with `serve -s build`, verify port.
+    "WEBSITES_PORT" = "3000"
   }
 }
