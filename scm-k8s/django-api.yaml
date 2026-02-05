@@ -61,7 +61,7 @@ spec:
         - name: ALLOWED_HOSTS
           value: "*"
         - name: REDIS_URL
-          value: "rediss://:TW0Cddo19kphxES5rpuY2fpZ0BgtEQT5lAzCaCXP3CQ=@scm-redis-cache-jayanandenm.redis.cache.windows.net:6380/0"
+          value: "redis://redis-service:6379/1"
 
 ---
 apiVersion: v1

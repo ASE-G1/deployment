@@ -22,28 +22,7 @@ variable "aks_cluster_name" {
   default     = "scm-aks"
 }
 
-variable "postgres_server_name" {
-  description = "Name of the PostgreSQL Flexible Server (must be globally unique)"
-  type        = string
-  default     = "scm-postgres-server"
-}
 
-variable "postgres_admin_user" {
-  description = "Admin username for PostgreSQL"
-  type        = string
-  default     = "scmadmin"
-}
-
-variable "postgres_admin_password" {
-  description = "Admin password for PostgreSQL"
-  type        = string
-  sensitive   = true
-}
-variable "redis_name" {
-  description = "Name of the Azure Cache for Redis (must be globally unique)"
-  type        = string
-  default     = "scm-redis-cache"
-}
 
 
 
