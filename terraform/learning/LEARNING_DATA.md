@@ -1,27 +1,36 @@
-# Module 4: Managed Data Services (Postgres & Redis)
+# Module 4: Containerized Data Services (Postgres & Redis)
 
-Your apps are "stateless"—meaning if they restart, they forget everything. To keep data safe, we use dedicated services: **PostgreSQL** for your database and **Redis** for your cache.
+Your apps are "stateless"—meaning if they restart, they forget everything. To keep data safe and accessible, we use **PostgreSQL** for your database and **Redis** for your cache.
 
-## 1. Why "Flexible Server"?
-In your code ([postgres.tf](file:///Users/jayanandenm/Desktop/ASE/codebase/deployment/terraform/postgres.tf)), you are using `azurerm_postgresql_flexible_server`. 
-- **Freedom**: It gives you better control over updates and maintenance windows.
-- **Savings**: You can "stop" a Flexible Server to save money when you aren't developing. Single servers don't always support this.
+## 1. Why Containerized on AKS?
+Previously, we used managed services (`azurerm_postgresql_flexible_server` and `azurerm_redis_cache`). However, to optimize costs in a development environment, we've moved these services inside your **AKS cluster**.
 
-## 2. Managing Access (The Firewall)
-Azure databases are locked down by default. Nothing can talk to them unless you open a "hole" in the firewall.
-- **Critical lines in `postgres.tf`**:
-  - `start_ip_address = "0.0.0.0"` and `end_ip_address = "0.0.0.0"`: This is a special Azure rule that allows *other Azure services* (like your AKS cluster or Web App) to connect.
-  - `allow_all` (0.0.0.0 to 255.255.255.255): This is for development ease, allowing your local computer to connect. 
-  - **Expert Warning**: In a real production environment, you should only whitelist specific IPs or use a "VNet" to keep the database completely off the public internet.
+- **Cost Efficiency**: You don't pay for separate server instances; they share the resources of your AKS nodes.
+- **Unified Management**: When you stop your AKS cluster using `manage_az_resources.sh stop`, your database and cache stop automatically, saving you money.
+- **Portability**: The configuration is defined in Kubernetes YAML files, making it easy to move between clusters.
+
+## 2. Managing Data in Kubernetes
+In Kubernetes, data is handled using **Persistent Volumes**. Even if a Postgres "Pod" restarts, the data remains safe on a managed disk attached to the cluster.
+
+- **Check your cluster**: You can see these services running by using:
+  ```bash
+  kubectl get pods -n scm-app
+  ```
+- **Internal Access**: Other apps in the cluster (like the backend) connect to `postgres-service` and `redis-service` using internal DNS, keeping the traffic off the public internet.
 
 ## 3. Redis: The "Flash Module"
 Redis is an in-memory database. It is incredibly fast.
 - **Purpose**: It stores session data or temporary calculations so the main database doesn't get overwhelmed.
-- **In your code**: [redis.tf](file:///Users/jayanandenm/Desktop/ASE/codebase/deployment/terraform/redis.tf) sets up a `Basic` SKU. This is the cheapest option and is perfect for dev environments.
+- **In your setup**: It runs as a lightweight pod, providing high performance without the cost of a managed Azure cache.
 
-## 4. Expert Insight: SSL
-Look at [redis.tf](file:///Users/jayanandenm/Desktop/ASE/codebase/deployment/terraform/redis.tf), line 8: `enable_non_ssl_port = false`.
-- This means your app MUST connect using an encrypted connection (SSL/TLS). This is a security best practice that you've already implemented!
+## 4. Expert Insight: Security
+Even though these services are inside the cluster, we still protect them:
+- **Secrets**: Passwords and connection strings are stored as **Kubernetes Secrets**, not in plain text in your code.
+- **Network Policies**: You can restrict access so only the backend pod is allowed to talk to the database.
+
+---
+**Next Module**: [Module 5: Automation & Maintenance](file:///Users/jayanandenm/Desktop/ASE/codebase/deployment/terraform/learning/LEARNING_AUTOMATION.md)
+
 
 ---
 **Next Module**: [Module 5: Automation & Maintenance](file:///Users/jayanandenm/Desktop/ASE/codebase/deployment/terraform/learning/LEARNING_AUTOMATION.md)

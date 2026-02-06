@@ -4,12 +4,13 @@ The final step to being an expert is realizing that **Manual Work is the Enemy.*
 
 ## 1. The Power of the Azure CLI (`az`)
 While Terraform builds the "house," the Azure CLI is like the "remote control." You use it for daily actions.
-- **In your code**: [start_az_resources.sh](file:///Users/jayanandenm/Desktop/ASE/codebase/deployment/terraform/start_az_resources.sh) uses the CLI to wake up your servers.
+- **In your code**: [manage_az_resources.sh](file:///Users/jayanandenm/Desktop/ASE/codebase/deployment/terraform/manage_az_resources.sh) uses the CLI to wake up or pause your servers.
 
 ## 2. Why use Shell Scripts?
 You could type `az aks stop ...` every night, but you'll eventually forget. 
 - **Documented Process**: A script is a living document of how a task should be done.
-- **Speed**: One command (`./stop_az_resources.sh`) replaces five minutes of clicking in the portal.
+- **Speed**: One command (`./manage_az_resources.sh stop`) replaces five minutes of clicking in the portal.
+
 
 ## 3. The "State of Reality" Check
 A key expert concept is the **Reconciliation Loop**.

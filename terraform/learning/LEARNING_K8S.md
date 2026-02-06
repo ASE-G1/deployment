@@ -7,6 +7,8 @@ If you have 10 different backend services, how do you make sure they stay runnin
 - **Self-Healing**: If a container crashes, K8s restarts it automatically.
 - **Scaling**: If demand goes up, K8s adds more copies (Pods) of your app.
 - **Load Balancing**: It distributes traffic evenly between those copies.
+- **Service Consolidation**: In this project, AKS even hosts your **PostgreSQL** and **Redis** services, making it the central engine of your entire backend.
+
 
 ## 2. Key Terms to Know
 - **Pod**: The smallest unit; it's basically your running container.

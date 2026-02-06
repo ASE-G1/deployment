@@ -13,7 +13,7 @@ WEBAPP_NAME="scm-frontend-webapp"
 
 
 show_usage() {
-    echo "Usage: $0 [start|stop]"
+    echo "Usage: $0 [start|stop|status]"
     exit 1
 }
 
@@ -55,6 +55,17 @@ elif [ "$ACTION" == "stop" ]; then
     az webapp stop --name $WEBAPP_NAME --resource-group $RESOURCE_GROUP
 
     echo "Stop commands issued."
+
+elif [ "$ACTION" == "status" ]; then
+    echo "Checking status of Azure Resources in $RESOURCE_GROUP..."
+
+    # 1. Check AKS Cluster Status
+    AKS_STATUS=$(az aks show --name $AKS_CLUSTER --resource-group $RESOURCE_GROUP --query powerState.code -o tsv 2>/dev/null || echo "Unknown/Not Found")
+    echo "AKS Cluster ($AKS_CLUSTER): $AKS_STATUS"
+
+    # 2. Check Web App Status
+    WEBAPP_STATUS=$(az webapp show --name $WEBAPP_NAME --resource-group $RESOURCE_GROUP --query state -o tsv 2>/dev/null || echo "Unknown/Not Found")
+    echo "Web App ($WEBAPP_NAME): $WEBAPP_STATUS"
 
 else
     show_usage
