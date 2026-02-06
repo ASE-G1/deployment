@@ -6,26 +6,29 @@
 - **Stop:** `./deployment/terraform/manage_az_resources.sh stop`
   > **Note:** This controls the AKS cluster (Compute) and the Web App. PostgreSQL and Redis now run as containers within AKS and will automatically start/stop with the cluster.
 
+---
+
 ## 2. Deployment
 - **Frontend:** `./deployment/deploy_frontend_manual.sh`
   - Deploys static files + Node server to Azure App Service (F1 Tier).
 - **Backend:** `./deployment/deploy_backend_manual.sh`
   - Builds Docker image, pushes to ACR, and restarts AKS deployments.
 
-## 3. Kubernetes Operations (Internal DB/Cache)
-**Run Migrations:**
-```bash
-kubectl exec -n scm-app -it $(kubectl get pods -n scm-app -l app=django-api -o jsonpath='{.items[0].metadata.name}') -- python manage.py migrate
-```
+---
 
-**Create Bulk Users:**
-```bash
-kubectl exec -n scm-app -it $(kubectl get pods -n scm-app -l app=django-api -o jsonpath='{.items[0].metadata.name}') -- python -c "$(cat deployment/create_users.py)"
-```
+## 3. Kubernetes Operations (Internal DB/Cache)
+
+### Database Helper Script
+**Script:** `deployment/manage_db.sh`
+- **Run Migrations:** `./deployment/manage_db.sh migrate`
+- **Create Bulk Users:** `./deployment/manage_db.sh import-users`
+- **Create Superuser:** `./deployment/manage_db.sh createsuperuser`
+- **Django Shell:** `./deployment/manage_db.sh shell`
 
 **Check Service Status:**
 ```bash
 kubectl get pods -n scm-app
+kubectl get svc -n scm-app
 ```
 
 ---
@@ -65,4 +68,9 @@ kubectl describe deployment django-api -n scm-app
 az webapp log tail --resource-group scm-rg --name scm-frontend-webapp
 ```
 
-
+### Database Persistence Verification
+If the database seems empty after a restart, verify the Persistent Volume Claim:
+```bash
+kubectl get pvc -n scm-app
+kubectl describe pvc postgres-pvc -n scm-app
+```

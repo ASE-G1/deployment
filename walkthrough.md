@@ -1,172 +1,76 @@
-# SCM Infrastructure & Deployment: Comprehensive Walkthrough
+# SCM Infrastructure & Deployment: Master Walkthrough
 
-This guide provides detailed steps for the infrastructure setup, configuration, deployment, and ongoing maintenance of the **Sustainable City Management (SCM)** project on Azure.
-
----
-
-## 🏗️ Part 1: Infrastructure Provisioning (Terraform)
-
-The core infrastructure is managed using Terraform in the `deployment/terraform` directory.
-
-### Components Provisioned:
-- **Resource Group:** `scm-rg` (UK South)
-- **AKS Cluster:** `scm-aks` (vNet integrated)
-- **PostgreSQL:** Flexible Server `scm-postgres-server`
-- **Redis:** `scm-redis-cache`
-- **ACR:** `asescmacr`
-- **App Service:** `scm-frontend-webapp` (Linux, Node 20 LTS)
-
-### Initialization & Deployment:
-```bash
-cd deployment/terraform
-terraform init
-terraform plan
-terraform apply
-```
+This guide provides the **actual** step-by-step flow of the infrastructure setup and the containerized consolidation we implemented for the **Sustainable City Management (SCM)** project.
 
 ---
 
-## ⚙️ Part 2: Cluster Setup & Configuration
+## 🏗️ Phase 1: Infrastructure Provisioning (Terraform)
+We use Terraform to define the managed resources in `deployment/terraform`.
 
-After the infrastructure reaches a "Successful" state, perform these one-time configuration steps.
-
-### 1. Connect to your AKS Cluster
-```bash
-az aks get-credentials --resource-group scm-rg --name scm-aks
-```
-
-### 2. Install Ingress & Cert Manager
-```bash
-# Add Helm repo
-helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
-helm repo update
-
-# Install Nginx Ingress
-helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
-  --namespace ingress-nginx --create-namespace
-
-# Install Cert Manager (for SSL)
-kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.3/cert-manager.yaml
-```
-
-### 3. Application Secrets
-Create the following secrets in the `scm-app` namespace:
-```bash
-# Create Namespace
-kubectl create namespace scm-app
-
-# Django Secret Key
-kubectl create secret generic django-secret -n scm-app \
-  --from-literal=DJANGO_SECRET_KEY="your-secret-key"
-
-# Database & Redis Credentials
-kubectl create secret generic scm-db-secret -n scm-app \
-  --from-literal=DB_HOST="scm-postgres-server.postgres.database.azure.com" \
-  --from-literal=DB_NAME="scm" \
-  --from-literal=DB_USER="scmadmin" \
-  --from-literal=DB_PASSWORD="Password@123" \
-  --from-literal=DB_PORT="5432" \
-  --from-literal=DB_SSLMODE="require" \
-  --from-literal=REDIS_URL="redis://:password@scm-redis-cache.redis.cache.windows.net:6380/0"
-```
+1.  **Initialize**: `cd deployment/terraform && terraform init`
+2.  **Provision**: Run `terraform apply` to create:
+    - **Resource Group**: `scm-rg` (UK South)
+    - **AKS Cluster**: `scm-aks` (vNet integrated, VM size: `Standard_B2s`)
+    - **App Service**: `scm-frontend-webapp` (Free Tier F1 for the React frontend)
+    - **ACR**: `asescmacr` (Container Registry)
+    - *Note: Managed Postgres and Redis were removed in the optimization phase to save ~$30/mo.*
 
 ---
 
-## 🚀 Part 3: Deployment Scripts
+## ⚙️ Phase 2: Cluster Setup & Consolidation
+Once the cluster is running, we configure the core services inside Kubernetes.
 
-We use custom scripts for fast, manual deployments from a local machine.
+### 1. Ingress & Routing (`scm-ingress.yaml`)
+We use the **Nginx Ingress Controller** to handle incoming traffic.
+- **Host**: `albinbinu.dev`
+- **Routing**: All traffic on this host is routed to the `django-service` on port 8000.
+- **SSL**: Controlled via `cert-manager` using the `letsencrypt-prod` issuer.
 
-### 1. Backend (Django to AKS)
-Builds, pushes, and updates the Kubernetes deployment.
-```bash
-./deploy_backend_manual.sh
-```
+### 2. Containerized Data Tier (The Cost Fix)
+To save student credits, we moved the database and cache inside the cluster:
+- **Redis**: Deployed as a `Deployment` using `redis.yaml`. Accessible internally at `redis-service:6379`.
+- **PostgreSQL**: Deployed as a `StatefulSet` using `postgres.yaml`.
+  - **Storage**: Uses a `PersistentVolumeClaim` (PVC) to reserve an Azure Disk.
+  - **The "subPath" Fix**: We mount the volume into `/var/lib/postgresql/data` using `subPath: postgres` to avoid initialization errors caused by the default `lost+found` folder on new Azure Disks.
 
-### 2. Frontend (React to App Service)
-Optimized build that excludes `node_modules` for fast upload.
-```bash
-./deploy_frontend_manual.sh
-```
-
----
-
-## 🛠️ Part 4: Critical Troubleshooting & Maintenance
-
-### 🔓 1. Network Access (NSG)
-By default, AKS might block external traffic to the Ingress. Use this to open ports 80/443:
-```bash
-az network nsg rule create \
-  --resource-group MC_scm-rg_scm-aks_uksouth \
-  --nsg-name aks-agentpool-23497160-nsg \
-  --name AllowHTTP \
-  --priority 1001 \
-  --destination-port-ranges 80 443 \
-  --access Allow --protocol Tcp
-```
-
-### 🗄️ 2. Database & Redis Fixes
-**Database Migration Errors:**
-If you see "Table does not exist" but migrations show as applied, run:
-```bash
-# Reset history for core apps
-kubectl exec -n scm-app deploy/django-api -- sh -c "python manage.py migrate --fake sessions zero && python manage.py migrate --fake auth zero && python manage.py migrate --fake admin zero && python manage.py migrate --fake contenttypes zero"
-
-# Re-apply initial migrations
-kubectl exec -n scm-app deploy/django-api -- python manage.py migrate --fake-initial
-```
-
-**Redis Connection Issues ("Redis is cooked"):**
-If Redis isn't working, verify the `REDIS_URL` in the Kubernetes manifests. We found the URL was hardcoded to an old instance.
-1. Get the new Redis access key:
-   ```bash
-   az redis list-keys --name scm-redis-cache-jayanandenm --resource-group scm-rg --query primaryKey -o tsv
-   ```
-2. Update `REDIS_URL` in `django-api.yaml`, `celery-worker.yaml`, and `celery-beat.yaml`:
-   `rediss://:<primaryKey>@scm-redis-cache-jayanandenm.redis.cache.windows.net:6380/0`
-3. Re-apply manifests:
-   ```bash
-   kubectl apply -f deployment/scm-k8s/django-api.yaml
-   kubectl apply -f deployment/scm-k8s/celery-worker.yaml
-   kubectl apply -f deployment/scm-k8s/celery-beat.yaml
-   ```
-
-### 👤 3. Admin & User Management
-**Reset Admin Password:**
-```bash
-kubectl exec -n scm-app deploy/django-api -- sh -c "echo \"from django.contrib.auth import get_user_model; User = get_user_model(); u = User.objects.get(username='admin'); u.set_password('Password@123'); u.save()\" | python manage.py shell"
-```
-
-**Import Static Users (`analyst`, `manager`, `provider`):**
-```bash
-# 1. Ensure create_users.py is present
-# 2. Copy to pod
-kubectl cp create_users.py scm-app/$(kubectl get pod -n scm-app -l app=django-api -o jsonpath='{.items[0].metadata.name}'):/app/create_users.py
-
-# 3. Import via shell
-kubectl exec -n scm-app deploy/django-api -- python manage.py shell -c "import create_users"
-```
+### 3. Application Configuration (Secrets)
+Secrets are applied to the `scm-app` namespace via `scm-k8s/secrets.yaml`:
+- **`scm-db-secret`**: Contains `DB_HOST` (set to `postgres-service`), credentials, and SSL disabled for internal cluster traffic.
+- **`django-secret`**: Contains the `DJANGO_SECRET_KEY`.
 
 ---
 
-## 💰 Part 5: Utility Scripts (Resource Management)
+## 🚀 Phase 3: Deployment & Operations
 
-To manage costs while not developing, use these commands:
+### 1. Deploying the Backend
+Run `./deployment/deploy_backend_manual.sh`. This:
+- Builds the `scm_backend` image.
+- Pushes to ACR.
+- Restarts the `django-api`, `celery-worker`, and `celery-beat` deployments.
+- Re-applies the service and ingress manifests.
 
-### 🔻 Stop Resources (Save Money)
-Stops the App Service, AKS Cluster, and Postgres Server.
-```bash
-./deployment/stop_az.sh
-```
+### 2. Deploying the Frontend
+Run `./deployment/deploy_frontend_manual.sh`. This:
+- Builds the React app.
+- Packages it with a Node server.
+- Deploys to Azure App Service via Zip Deploy with a 20s safety sleep to allow for instance recycling.
 
-### 🔼 Start Resources (Resume Work)
-Restarts all components. Wait ~5-10 mins for full availability.
-```bash
-./deployment/start_az.sh
-```
+### 3. Database Initial Setup
+Since the Postgres is now containerized and fresh:
+1.  **Migrate**: `kubectl exec -it <django-pod> -- python manage.py migrate`
+2.  **Seed Users**: `kubectl exec -it <django-pod> -- python -c "$(cat deployment/create_users.py)"`
 
 ---
 
-## 🌐 Summary of URLs
-- **Frontend App:** [https://scm-frontend-webapp.azurewebsites.net](https://scm-frontend-webapp.azurewebsites.net)
-- **Backend API:** [https://albinbinu.dev](https://albinbinu.dev)
-- **Django Admin:** [https://albinbinu.dev/admin/](https://albinbinu.dev/admin/)
+## 🛠️ Lessons Learnt & Fixes
+For a detailed breakdown of the technical challenges we solved (like the Postgres volume fix and Redis connection issues), see:
+- [LESSONS_LEARNT.md](LESSONS_LEARNT.md)
+
+---
+
+## 📝 Troubleshooting Reference
+- **Check Pod Status**: `kubectl get pods -n scm-app`
+- **View Logs**: `kubectl logs -f <pod-name> -n scm-app`
+- **Resource Management**: Use `manage_az_resources.sh` to stop the AKS Cluster and Web App when not in use to stop billing immediately.
+
+*All detailed manual commands are located in [COMMANDS.md](COMMANDS.md).*
