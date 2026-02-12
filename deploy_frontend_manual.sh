@@ -1,7 +1,9 @@
+#!/bin/bash
+set -e # Exit on error
+
 # Get the directory of the script and then the repo root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-cd "$REPO_ROOT"
 
 # Configuration
 RESOURCE_GROUP="scm-rg"
@@ -9,18 +11,22 @@ WEBAPP_NAME="scm-frontend-webapp"
 
 echo "Starting Manual Frontend Deployment..."
 
+# Ensure the web app is started
+echo "Checking if Web App is started..."
+az webapp start --resource-group $RESOURCE_GROUP --name $WEBAPP_NAME
+
 # 1. Build
 echo "Installing dependencies and building..."
-cd scm_frontend
+cd "$REPO_ROOT/scm_frontend"
 npm install
 npm run build
 
 # 2. Package
 echo "Creating optimized deployment package..."
-rm -rf deploy_temp
-mkdir -p deploy_temp
-cp -r build deploy_temp/
-cp server.js deploy_temp/
+rm -rf "$REPO_ROOT/deploy_temp"
+mkdir -p "$REPO_ROOT/deploy_temp"
+cp -r build "$REPO_ROOT/deploy_temp/"
+cp server.js "$REPO_ROOT/deploy_temp/"
 
 # Create a minimal package.json for production server
 echo '{
@@ -32,15 +38,16 @@ echo '{
   "dependencies": {
     "express": "^4.18.2"
   }
-}' > deploy_temp/package.json
+}' > "$REPO_ROOT/deploy_temp/package.json"
 
 echo "Installing production dependencies..."
-cd deploy_temp
+cd "$REPO_ROOT/deploy_temp"
 npm install --production --no-package-lock
 
 echo "Zipping (including node_modules)..."
-zip -qr ../release_frontend.zip .
-cd ../scm_frontend
+ZIP_FILE="$REPO_ROOT/release_frontend.zip"
+rm -f "$ZIP_FILE"
+zip -qr "$ZIP_FILE" .
 
 # 3. Deploy
 echo "Deploying to Azure App Service ($WEBAPP_NAME)..."
@@ -52,29 +59,15 @@ az webapp config appsettings delete --resource-group $RESOURCE_GROUP --name $WEB
 echo "Configuring startup command and runtime..."
 az webapp config set --resource-group $RESOURCE_GROUP --name $WEBAPP_NAME --startup-file "node server.js" --linux-fx-version "NODE|20-lts"
 
-echo "Waiting 20 seconds for App Service to restart..."
-sleep 20
+echo "Waiting 10 seconds for App Service to stabilize..."
+sleep 10
 
-cd "$REPO_ROOT"
+echo "Executing Zip Deploy..."
 az webapp deploy \
   --resource-group $RESOURCE_GROUP \
   --name $WEBAPP_NAME \
-  --src-path release_frontend.zip \
+  --src-path "$ZIP_FILE" \
   --type zip
 
 echo "Deployment completed!"
 echo "You can access the frontend at: https://$WEBAPP_NAME.azurewebsites.net"
-
-echo "Waiting 20 seconds for App Service to restart..."
-sleep 20
-
-cd ..
-az webapp deploy \
-  --resource-group $RESOURCE_GROUP \
-  --name $WEBAPP_NAME \
-  --src-path release_frontend.zip \
-  --type zip
-
-echo "Deployment completed!"
-echo "You can access the frontend at: https://$WEBAPP_NAME.azurewebsites.net"
-
