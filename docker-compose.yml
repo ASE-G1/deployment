@@ -1,0 +1,92 @@
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: postgres
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=Password@123
+      - POSTGRES_DB=userdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    networks:
+      - app-net
+    restart: unless-stopped
+
+  redis:
+    image: redis:8.2.3
+    container_name: redis
+    networks:
+      - app-net
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ../scm_backend
+      dockerfile: Dockerfile_dev
+    image: scm_backend:local
+    container_name: django
+    volumes:
+      - ../scm_backend:/app
+    ports:
+      - "8000:8000"
+    command: bash -c "cd SustainableCityManagement && python manage.py runserver 0.0.0.0:8000"
+    networks:
+      - app-net
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  celery_worker:
+    image: scm_backend:local
+    container_name: celery_worker
+    volumes:
+      - ../scm_backend:/app
+    command: bash -c "cd SustainableCityManagement && celery -A SustainableCityManagement worker -l info --without-gossip --without-mingle --without-heartbeat -Ofair --pool=solo"
+    networks:
+      - app-net
+    depends_on:
+      - redis
+      - db
+      - backend
+    restart: unless-stopped
+
+  celery_ml_worker:
+    image: scm_backend:local
+    container_name: celery_ml_worker
+    volumes:
+      - ../scm_backend:/app
+    command: bash -c "cd SustainableCityManagement && celery -A SustainableCityManagement worker -l info -Q ml_queue --pool=solo"
+    networks:
+      - app-net
+    depends_on:
+      - redis
+      - db
+      - backend
+    restart: unless-stopped
+
+  celery_beat:
+    image: scm_backend:local
+    container_name: celery_beat
+    volumes:
+      - ../scm_backend:/app
+    command: bash -c "cd SustainableCityManagement && celery -A SustainableCityManagement beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
+    networks:
+      - app-net
+    depends_on:
+      - redis
+      - db
+      - backend
+    restart: unless-stopped
+
+  # NOTE: Frontend is NOT in docker-compose — it runs natively via npm start (see launch.sh)
+
+networks:
+  app-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
