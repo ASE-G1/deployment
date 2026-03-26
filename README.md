@@ -1,109 +1,250 @@
-# Sustainable City Management (SCM) - Deployment & Infrastructure
+# SCM Deployment — Azure Infrastructure
 
-This repository contains the full deployment and infrastructure code for the **Sustainable City Management (SCM)** project. It utilizes a hybrid cloud architecture on Azure, combining **Kubernetes (AKS)** for the backend processing and **Azure App Service** for the frontend hosting, optimized for cost-effectiveness on the Azure Student Plan.
-
----
-
-## 📚 Prerequisites: Learning Path
-To understand and manage this repository, it is helpful to be familiar with the following topics:
-- **Cloud Computing (Azure)**: Basics of Resource Groups, Virtual Machines, and Networking.
-- **Infrastructure as Code (IaC)**: Using **Terraform** to provision and manage cloud resources.
-- **Containerization**: **Docker** for packaging applications into images.
-- **Container Orchestration**: **Kubernetes (AKS)** concepts like Pods, Deployments, Services, and StatefulSets.
-- **Web Server & Routing**: **Nginx** and **Ingress Controllers** for traffic management.
-- **TLS/SSL**: Managing certificates with `cert-manager`.
-- **Database Management**: Running PostgreSQL in containerized environments with Persistence (PVCs).
-- **Asynchronous Tasks**: Using **Redis** and **Celery** for background processing.
+Full deployment reference for the Sustainable City Management platform on Azure. Covers infrastructure provisioning, Kubernetes setup, application deployment, and day-to-day operations.
 
 ---
 
-## 🏗️ Architecture Overview
-The system is divided into three main components:
-1.  **Frontend**: A React application hosted on **Azure App Service (Linux)**.
-2.  **Backend API**: A Django application running inside **Azure Kubernetes Service (AKS)**.
-3.  **Data Tier**: Containerized **PostgreSQL** and **Redis** instances also running within **AKS** to minimize managed service costs.
+## Architecture
 
-### Resource Map
-- **Terraform** (`deployment/terraform`): Defines the Azure infrastructure.
-- **Kubernetes** (`deployment/scm-k8s`): Defines the deployment manifests (Pods, Secrets, Ingress).
-- **Scripts** (`deployment/`): Manual automation for deployment and resource management.
+| Layer | Technology | Hosting |
+|-------|-----------|---------|
+| Frontend | React SPA | Azure App Service (F1 — free) |
+| Backend | Django + DRF | Azure Kubernetes Service (Standard_B2s, ~$30/mo) |
+| Database | PostgreSQL | Containerised inside AKS (free — saves ~$15/mo) |
+| Cache / Broker | Redis | Containerised inside AKS (free — saves ~$14/mo) |
+| Image Registry | Docker images | Azure Container Registry Basic (~$5/mo) |
+| **Total** | | **~$35/mo** |
 
----
-
-## 🚀 Implementation Flow
-
-### 1. Infrastructure Provisioning
-We use Terraform to define exactly what resources exist in Azure.
-- **Location**: `deployment/terraform`
-- **Action**: Run `terraform apply` to create the Resource Group, AKS Cluster, Container Registry (ACR), and App Service.
-
-### 2. Cluster Setup
-Once the cluster is up, we configure the "environment":
-- **Ingress-Nginx**: The entry point for all web traffic to the backend.
-- **Cert-Manager**: Automatically issues SSL certificates via Let's Encrypt.
-- **Secrets**: Encrypted environment variables (`scm-db-secret`, `django-secret`) are applied to the `scm-app` namespace.
-
-### 3. Application Deployment
-- **Backend**: The `deploy_backend_manual.sh` script builds the Docker image, pushes it to ACR, and prompts AKS to pull the latest version and restart the API pods.
-- **Frontend**: The `deploy_frontend_manual.sh` script bundles the React app and deploys it to the App Service using Zip Deploy.
+**Why containerised Postgres and Redis?** AKS pods share the cluster compute — no extra managed service cost. Data persists via PersistentVolumeClaims. The AKS cluster can be paused when not in use to save money.
 
 ---
 
-## 🛠️ Issues Encountered & Fixes
+## Prerequisites
 
-| Issue | Root Cause | Resolution |
-| :--- | :--- | :--- |
-| **High Redis Costs** | Initial setup used Azure Managed Redis (~$16/mo). | **Consolidated**: Moved Redis into a container inside AKS. |
-| **Postgres Start Failure** | Azure Disk root contains a `lost+found` folder; Postgres `initdb` requires an empty dir. | **subPath**: Updated `postgres.yaml` to mount into a `postgres/` sub-folder. |
-| **Migration Desync** | Local vs Remote migration history mismatch. | **Fake Reset**: Ran `python manage.py migrate --fake` to align histories. |
-| **Redis "Cooked"** | Hardcoded/Old connection strings in manifests. | **Environment variables**: Centralized credentials into a Kubernetes Secret. |
-| **Script Path Confusion** | Deployment scripts were scattered in the root folder. | **Reorganization**: Moved everything into `deployment/` with robust `REPO_ROOT` detection. |
+- Azure CLI (`az`) — logged in with `az login`
+- Terraform ≥ 1.5
+- `kubectl` — configured via `az aks get-credentials`
+- Docker — logged into ACR (`az acr login --name <acr-name>`)
 
 ---
 
-## 💻 Essential Commands
+## Phase 1 — Infrastructure (Terraform)
 
-### Resource Management
-Save your Azure credits by stopping the cluster when not in use:
+Provisions: Resource Group, AKS cluster, ACR, App Service.
+
 ```bash
-# Start/Stop whole environment
-./deployment/terraform/manage_az_resources.sh start
-./deployment/terraform/manage_az_resources.sh stop
+cd deployment/terraform
+terraform init
+terraform plan
+terraform apply
 ```
 
-### Database Operations
-```bash
-# Apply Migrations
-./deployment/manage_db.sh migrate  # (Or use the kubectl exec command in COMMANDS.md)
+After apply, connect kubectl to the new cluster:
 
-# Create Bulk Users
-kubectl exec -n scm-app -it $(kubectl get pods -l app=django-api -n scm-app -o name) -- python -c "$(cat deployment/create_users.py)"
+```bash
+az aks get-credentials --resource-group scm-rg --name scm-aks
+kubectl get nodes   # verify
 ```
 
-### Debugging & Logs
+> **Note:** Managed Azure Postgres and Redis are NOT provisioned — removed to save costs. The `scm-k8s/postgres.yaml` and `redis.yaml` manifests handle data services inside AKS instead.
+
+---
+
+## Phase 2 — Cluster Setup
+
+### 1. Install Nginx Ingress Controller
+
 ```bash
-# Backend Logs
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+helm install ingress-nginx ingress-nginx/ingress-nginx \
+  --namespace ingress-nginx --create-namespace
+```
+
+### 2. Install cert-manager (HTTPS / Let's Encrypt)
+
+```bash
+helm repo add jetstack https://charts.jetstack.io
+helm install cert-manager jetstack/cert-manager \
+  --namespace cert-manager --create-namespace \
+  --set installCRDs=true
+```
+
+### 3. Apply Secrets
+
+Edit `scm-k8s/secrets.yaml` with base64-encoded values, then:
+
+```bash
+kubectl apply -f deployment/scm-k8s/secrets.yaml
+```
+
+Generate base64 values:
+```bash
+echo -n "your-value-here" | base64
+```
+
+### 4. Deploy Data Tier (Postgres + Redis)
+
+```bash
+kubectl apply -f deployment/scm-k8s/postgres.yaml
+kubectl apply -f deployment/scm-k8s/redis.yaml
+kubectl get pods   # wait for both to be Running
+```
+
+> **Redis:** Use the internal Kubernetes service name `redis-service:6379` in Django settings — not an Azure URL, and no SSL for internal cluster traffic.
+
+> **Postgres known issue:** Azure Disk creates a `lost+found` directory that blocks Postgres initialisation. Fixed via `subPath: postgres` in the volumeMount — already set in `postgres.yaml`.
+
+### 5. Apply Ingress
+
+```bash
+kubectl apply -f deployment/scm-k8s/scm-ingress.yaml
+```
+
+---
+
+## Phase 3 — Application Deployment
+
+### Backend
+
+```bash
+bash deployment/deploy_backend_manual.sh
+```
+
+Builds the Django Docker image, pushes to ACR, and rolls out to AKS. After deploy, run migrations:
+
+```bash
+bash deployment/manage_db.sh migrate
+```
+
+### Frontend
+
+```bash
+bash deployment/deploy_frontend_manual.sh
+```
+
+Builds the React app and deploys to Azure App Service via Zip Deploy.
+
+> **Race condition:** App Service takes ~20s to recycle after deploy. The script includes a sleep buffer — do not cancel early.
+
+### Celery Workers
+
+```bash
+kubectl apply -f deployment/scm-k8s/celery-worker.yaml
+kubectl apply -f deployment/scm-k8s/celery-beat.yaml
+```
+
+### Full Deploy Order (fresh cluster)
+
+```
+1. terraform apply
+2. az aks get-credentials
+3. Install ingress-nginx + cert-manager (helm)
+4. kubectl apply -f scm-k8s/secrets.yaml
+5. kubectl apply -f scm-k8s/postgres.yaml && scm-k8s/redis.yaml
+6. kubectl apply -f scm-k8s/scm-ingress.yaml
+7. bash deploy_backend_manual.sh
+8. bash manage_db.sh migrate
+9. bash deploy_frontend_manual.sh
+10. kubectl apply -f scm-k8s/celery-worker.yaml && celery-beat.yaml
+11. kubectl get pods -n scm-app   # verify all Running
+```
+
+---
+
+## Day-to-Day Operations
+
+### Start / Stop (Cost Saving)
+
+```bash
+bash deployment/terraform/manage_az_resources.sh stop    # pause everything
+bash deployment/terraform/manage_az_resources.sh start   # resume
+```
+
+Pauses the AKS cluster and App Service. Postgres data is preserved by the PVC.
+
+### Pod / Service Status
+
+```bash
+kubectl get pods -n scm-app
+kubectl get services -n scm-app
+kubectl get ingress -n scm-app
+```
+
+### Logs
+
+```bash
+# Backend API
 kubectl logs -f -l app=django-api -n scm-app
 
-# Nginx/Ingress Logs
+# Celery worker
+kubectl logs -f -l app=celery-worker -n scm-app
+
+# Celery beat
+kubectl logs -l app=celery-beat -n scm-app --tail=50
+
+# Nginx ingress
 kubectl logs -f -l app.kubernetes.io/name=ingress-nginx -n ingress-nginx
 
-# Frontend Logs
+# Frontend (App Service)
 az webapp log tail --resource-group scm-rg --name scm-frontend-webapp
 ```
 
+### Force Pod Restart
+
+```bash
+kubectl rollout restart deployment/django-api -n scm-app
+kubectl rollout restart deployment/celery-worker -n scm-app
+```
+
+### Database
+
+```bash
+bash deployment/manage_db.sh migrate   # run migrations
+bash deployment/manage_db.sh shell     # Django shell inside cluster
+python deployment/create_users.py      # bulk user creation
+```
+
+### Verify Persistent Volume
+
+```bash
+kubectl get pvc -n scm-app
+kubectl describe pvc postgres-pvc -n scm-app
+```
+
 ---
 
-## 📝 Detailed Deployment Outline
+## Troubleshooting
 
-1.  **Configure Terraform**: Set your variables in `terraform.tfvars`.
-2.  **Apply Infrastructure**: Run `terraform apply` in `deployment/terraform`.
-3.  **Get Credentials**: `az aks get-credentials --resource-group scm-rg --name scm-aks`.
-4.  **Install Base Cluster Dependencies**: (Ingress, Cert-Manager) as outlined in `walkthrough.md`.
-5.  **Apply K8s Manifests**: `kubectl apply -f deployment/scm-k8s/`.
-6.  **Run Initial Migration**: Ensure database schema is ready.
-7.  **Deploy Code**: Run the manual deployment scripts for Frontend and Backend.
-8.  **Verify**: Log in to the application and check service status via `kubectl get pods -n scm-app`.
+| Symptom | Likely Cause | Fix |
+|---------|-------------|-----|
+| Postgres pod stuck in `Init` | `lost+found` blocks data dir | Confirm `subPath: postgres` in `postgres.yaml` |
+| Redis connection refused | Wrong hostname in Django settings | Use `redis-service:6379`, not the Azure URL |
+| Migration mismatch on new pod | Stale migration state | Run `manage_db.sh migrate` after each backend deploy; use `--fake` if histories are desynced |
+| Frontend not updating after deploy | App Service still recycling | Wait 30s after script finishes, then hard-refresh |
+| Deployment script fails with path error | Script run from wrong directory | Scripts auto-detect `REPO_ROOT` — safe to run from any directory |
 
 ---
-*For a more technical dive into the cost strategies, refer to [cost_optimization_plan.md](deployment/cost_optimization_plan.md).*
+
+## Manifests Reference
+
+| File | Purpose |
+|------|---------|
+| `django-api.yaml` | Backend Deployment + Service + HPA |
+| `celery-worker.yaml` | Celery async task worker pods |
+| `celery-beat.yaml` | Celery Beat periodic task scheduler |
+| `postgres.yaml` | PostgreSQL StatefulSet + PVC + Service |
+| `redis.yaml` | Redis Deployment + Service |
+| `scm-ingress.yaml` | Nginx Ingress + cert-manager (Let's Encrypt TLS) |
+| `secrets.yaml` | DB credentials, API keys (base64-encoded) |
+
+## Terraform Reference
+
+| File | What It Creates |
+|------|----------------|
+| `main.tf` | Provider config, locals |
+| `providers.tf` | Azure provider setup |
+| `variables.tf` | Region, cluster name, SKUs |
+| `aks.tf` | AKS cluster + node pool |
+| `acr.tf` | Container Registry + AKS pull permission via Managed Identity |
+| `webapp.tf` | App Service plan + Linux web app |
