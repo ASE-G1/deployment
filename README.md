@@ -6,14 +6,14 @@ Full deployment reference for the Sustainable City Management platform on Azure.
 
 ## Architecture
 
-| Layer | Technology | Hosting |
-|-------|-----------|---------|
-| Frontend | React SPA | Azure App Service (F1 — free) |
-| Backend | Django + DRF | Azure Kubernetes Service (Standard_B2s, ~$30/mo) |
-| Database | PostgreSQL | Containerised inside AKS (free — saves ~$15/mo) |
-| Cache / Broker | Redis | Containerised inside AKS (free — saves ~$14/mo) |
-| Image Registry | Docker images | Azure Container Registry Basic (~$5/mo) |
-| **Total** | | **~$35/mo** |
+| Layer          | Technology    | Hosting                                          |
+| -------------- | ------------- | ------------------------------------------------ |
+| Frontend       | React SPA     | Azure App Service (F1 — free)                    |
+| Backend        | Django + DRF  | Azure Kubernetes Service (Standard_B2s, ~$30/mo) |
+| Database       | PostgreSQL    | Containerised inside AKS (free — saves ~$15/mo)  |
+| Cache / Broker | Redis         | Containerised inside AKS (free — saves ~$14/mo)  |
+| Image Registry | Docker images | Azure Container Registry Basic (~$5/mo)          |
+| **Total**      |               | **~$35/mo**                                      |
 
 **Why containerised Postgres and Redis?** AKS pods share the cluster compute — no extra managed service cost. Data persists via PersistentVolumeClaims. The AKS cluster can be paused when not in use to save money.
 
@@ -23,8 +23,8 @@ Full deployment reference for the Sustainable City Management platform on Azure.
 
 - Azure CLI (`az`) — logged in with `az login`
 - Terraform ≥ 1.5
-- `kubectl` — configured via `az aks get-credentials`
-- Docker — logged into ACR (`az acr login --name <acr-name>`)
+- `kubectl`
+- Docker
 
 ---
 
@@ -79,6 +79,7 @@ kubectl apply -f deployment/scm-k8s/secrets.yaml
 ```
 
 Generate base64 values:
+
 ```bash
 echo -n "your-value-here" | base64
 ```
@@ -216,35 +217,35 @@ kubectl describe pvc postgres-pvc -n scm-app
 
 ## Troubleshooting
 
-| Symptom | Likely Cause | Fix |
-|---------|-------------|-----|
-| Postgres pod stuck in `Init` | `lost+found` blocks data dir | Confirm `subPath: postgres` in `postgres.yaml` |
-| Redis connection refused | Wrong hostname in Django settings | Use `redis-service:6379`, not the Azure URL |
-| Migration mismatch on new pod | Stale migration state | Run `manage_db.sh migrate` after each backend deploy; use `--fake` if histories are desynced |
-| Frontend not updating after deploy | App Service still recycling | Wait 30s after script finishes, then hard-refresh |
-| Deployment script fails with path error | Script run from wrong directory | Scripts auto-detect `REPO_ROOT` — safe to run from any directory |
+| Symptom                                 | Likely Cause                      | Fix                                                                                          |
+| --------------------------------------- | --------------------------------- | -------------------------------------------------------------------------------------------- |
+| Postgres pod stuck in `Init`            | `lost+found` blocks data dir      | Confirm `subPath: postgres` in `postgres.yaml`                                               |
+| Redis connection refused                | Wrong hostname in Django settings | Use `redis-service:6379`, not the Azure URL                                                  |
+| Migration mismatch on new pod           | Stale migration state             | Run `manage_db.sh migrate` after each backend deploy; use `--fake` if histories are desynced |
+| Frontend not updating after deploy      | App Service still recycling       | Wait 30s after script finishes, then hard-refresh                                            |
+| Deployment script fails with path error | Script run from wrong directory   | Scripts auto-detect `REPO_ROOT` — safe to run from any directory                             |
 
 ---
 
 ## Manifests Reference
 
-| File | Purpose |
-|------|---------|
-| `django-api.yaml` | Backend Deployment + Service + HPA |
-| `celery-worker.yaml` | Celery async task worker pods |
-| `celery-beat.yaml` | Celery Beat periodic task scheduler |
-| `postgres.yaml` | PostgreSQL StatefulSet + PVC + Service |
-| `redis.yaml` | Redis Deployment + Service |
-| `scm-ingress.yaml` | Nginx Ingress + cert-manager (Let's Encrypt TLS) |
-| `secrets.yaml` | DB credentials, API keys (base64-encoded) |
+| File                 | Purpose                                          |
+| -------------------- | ------------------------------------------------ |
+| `django-api.yaml`    | Backend Deployment + Service + HPA               |
+| `celery-worker.yaml` | Celery async task worker pods                    |
+| `celery-beat.yaml`   | Celery Beat periodic task scheduler              |
+| `postgres.yaml`      | PostgreSQL StatefulSet + PVC + Service           |
+| `redis.yaml`         | Redis Deployment + Service                       |
+| `scm-ingress.yaml`   | Nginx Ingress + cert-manager (Let's Encrypt TLS) |
+| `secrets.yaml`       | DB credentials, API keys (base64-encoded)        |
 
 ## Terraform Reference
 
-| File | What It Creates |
-|------|----------------|
-| `main.tf` | Provider config, locals |
-| `providers.tf` | Azure provider setup |
-| `variables.tf` | Region, cluster name, SKUs |
-| `aks.tf` | AKS cluster + node pool |
-| `acr.tf` | Container Registry + AKS pull permission via Managed Identity |
-| `webapp.tf` | App Service plan + Linux web app |
+| File           | What It Creates                                               |
+| -------------- | ------------------------------------------------------------- |
+| `main.tf`      | Provider config, locals                                       |
+| `providers.tf` | Azure provider setup                                          |
+| `variables.tf` | Region, cluster name, SKUs                                    |
+| `aks.tf`       | AKS cluster + node pool                                       |
+| `acr.tf`       | Container Registry + AKS pull permission via Managed Identity |
+| `webapp.tf`    | App Service plan + Linux web app                              |
