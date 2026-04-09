@@ -18,7 +18,7 @@ spec:
           image: asescmacr.azurecr.io/scm-backend:latest
           imagePullPolicy: Always
           command: ["celery"]
-          args: ["-A", "SustainableCityManagement", "worker", "--loglevel=INFO", "-Q", "celery,ml_queue"]
+          args: ["-A", "SustainableCityManagement", "worker", "--loglevel=INFO", "-Q", "celery,ml_queue,SustainableCityManagement_queue"]
           env:
             - name: DB_HOST
               valueFrom:
